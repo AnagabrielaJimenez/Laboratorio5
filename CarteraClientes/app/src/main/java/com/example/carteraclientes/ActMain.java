@@ -6,6 +6,7 @@ import android.database.sqlite.SQLiteDatabase;
 import android.os.Bundle;
 
 import com.example.carteraclientes.BaseDatos.DatosOpenHelper;
+import com.example.carteraclientes.BaseDatos.BaseDatosClass;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.snackbar.Snackbar;
 
@@ -20,73 +21,82 @@ import android.widget.ArrayAdapter;
 import android.widget.ListView;
 
 import java.util.ArrayList;
+import java.util.List;
 
 public class ActMain extends AppCompatActivity {
-
-    //    *******************************
     private ListView lstDatos;
     private ArrayAdapter<String> adaptador;
     private ArrayList<String> clientes;
 
-    private SQLiteDatabase conexion;
-    private DatosOpenHelper datosOpenHelper;
-    //    ********************************
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.act_main);
-        Toolbar toolbar = findViewById(R.id.toolbar);
+        Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
-        FloatingActionButton fab = findViewById(R.id.fab);
+        FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
                 Intent it = new Intent(ActMain.this, ActNuevoCliente.class);
-                startActivity(it);
+                startActivityForResult(it,0);
             }
         });
         actualizar();
     }
 
     private void actualizar(){
+
         lstDatos = (ListView) findViewById(R.id.lstDatos);
-        clientes = new ArrayList<String>();
-
         try {
-            datosOpenHelper = new DatosOpenHelper(this);
-            conexion = datosOpenHelper.getWritableDatabase();
-            StringBuilder sql = new StringBuilder();
-            sql.append("SELECT * FROM CLIENTE");
-            String sNombre;
-            String sTelefono;
-            Cursor resultado = conexion.rawQuery(sql.toString(),null);
+            DatosOpenHelper dbHelper = new DatosOpenHelper(getApplicationContext());
+            SQLiteDatabase db = dbHelper.getReadableDatabase();
 
-            if (resultado.getCount()>0){
-                resultado.moveToFirst();
-                do{
-                    sNombre = resultado.getString(resultado.getColumnIndex("NOMBRE"));
-                    sTelefono = resultado.getString(resultado.getColumnIndex("TELEFONO"));
-                    clientes.add(sNombre+": "+sTelefono);
-                }while (resultado.moveToNext());
+            String[] projection = {
+                    BaseDatosClass.DATOS.COLUMN_NOMBRE,
+                    BaseDatosClass.DATOS.COLUMN_TELEFONO
+            };
+
+            String selection = null;
+            String[] selectionArgs = null;
+
+            String sortOrder = BaseDatosClass.DATOS.COLUMN_TELEFONO + " DESC";
+
+            Cursor cursor = db.query(
+                    BaseDatosClass.DATOS.TABLE_NAME,
+                    projection,
+                    null,
+                    null,
+                    null,
+                    null,
+                    sortOrder
+            );
+
+            if(cursor.getCount() >= 0) {
+                clientes = new ArrayList<>();
+                while (cursor.moveToNext()) {
+                    String sNombre = cursor.getString(cursor.getColumnIndexOrThrow(BaseDatosClass.DATOS.COLUMN_NOMBRE));
+                    String sTelefono = cursor.getString(cursor.getColumnIndex(BaseDatosClass.DATOS.COLUMN_TELEFONO));
+                    clientes.add(sNombre + ": " + sTelefono);
+                }
+                cursor.close();
             }
-
-            adaptador = new ArrayAdapter<String>(this,android.R.layout.simple_list_item_1, clientes);
+            adaptador = new ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, clientes);
             lstDatos.setAdapter(adaptador);
-        }
-        catch (Exception ex){
+
+        }catch (Exception ex){
             AlertDialog.Builder dlg = new AlertDialog.Builder(this);
             dlg.setTitle("Aviso");
             dlg.setMessage(ex.getMessage());
-            dlg.setNeutralButton("OK",null);
+            dlg.setNeutralButton("OK", null);
             dlg.show();
         }
-
-
-
     }
+
     @Override
-    protected void onActivityResult (int requestCode, int resultCode, @Nullable Intent data) {
+    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         actualizar();
     }
